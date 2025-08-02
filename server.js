@@ -17,6 +17,15 @@ app.get('/', (req, res) => {
   res.send('Привет, мир! Это наш первый сервер для CHOIZZE!');
 });
 
+// Новый маршрут для получения пользователей
+app.get('/api/users', (req, res) => {
+    const users = [
+        { id: 1, name: 'Alice' },
+        { id: 2, name: 'Bob' }
+    ];
+    res.json(users);
+});
+
 app.post('/register', async (req, res) => {
   try {
     const { username, email, password } = req.body;
