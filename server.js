@@ -652,7 +652,28 @@ app.get('/subscriptions', auth, async (req, res) => {
         res.status(500).json({ error: 'Ошибка сервера' });
     }
 });
+// Новый маршрут для обновления профиля
+app.put('/api/profile/:id', auth, async (req, res) => {
+    const userId = req.user.id;
+    const { fullName, bio, profilePictureUrl } = req.body;
 
+    try {
+        await db.query(
+            `INSERT INTO user_profiles (user_id, full_name, bio, profile_picture_url)
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT (user_id) DO UPDATE SET
+             full_name = EXCLUDED.full_name,
+             bio = EXCLUDED.bio,
+             profile_picture_url = EXCLUDED.profile_picture_url`,
+            [userId, fullName, bio, profilePictureUrl]
+        );
+
+        res.status(200).json({ message: 'Профиль успешно обновлен' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Ошибка сервера' });
+    }
+});
 app.listen(port, () => {
     console.log(`Сервер запущен по адресу http://localhost:${port}`);
 });
