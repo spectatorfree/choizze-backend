@@ -281,16 +281,39 @@ app.get('/friends', auth, async (req, res) => {
     }
 });
 
-// Маршрут для создания поста
+// Маршрут для создания поста (обновленный)
 app.post('/posts', auth, async (req, res) => {
     const { content } = req.body;
     const userId = req.user.id;
     try {
+        // Создаем пост в таблице posts
         const newPost = await db.query(
-            'INSERT INTO posts (user_id, content) VALUES ($1, $2) RETURNING *',
+            'INSERT INTO posts (user_id, content) VALUES ($1, $2) RETURNING id',
             [userId, content]
         );
-        res.status(201).json({ message: 'Пост успешно создан', post: newPost.rows[0] });
+        const postId = newPost.rows[0].id;
+
+        // Получаем список друзей пользователя
+        const friends = await db.query(
+            `SELECT
+                 CASE
+                    WHEN sender_id = $1 THEN receiver_id
+                    ELSE sender_id
+                 END as friend_id
+             FROM friends
+             WHERE (sender_id = $1 OR receiver_id = $1) AND status = 'accepted'`,
+            [userId]
+        );
+
+        // Добавляем пост в новостную ленту автора
+        await db.query('INSERT INTO news (user_id, post_id) VALUES ($1, $2)', [userId, postId]);
+
+        // Добавляем пост в новостную ленту каждого друга
+        for (const friend of friends.rows) {
+            await db.query('INSERT INTO news (user_id, post_id) VALUES ($1, $2)', [friend.friend_id, postId]);
+        }
+        
+        res.status(201).json({ message: 'Пост успешно создан и добавлен в новостные ленты друзей', postId: postId });
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Ошибка сервера' });
