@@ -281,6 +281,22 @@ app.get('/friends', auth, async (req, res) => {
     }
 });
 
+// Маршрут для создания поста
+app.post('/posts', auth, async (req, res) => {
+    const { content } = req.body;
+    const userId = req.user.id;
+    try {
+        const newPost = await db.query(
+            'INSERT INTO posts (user_id, content) VALUES ($1, $2) RETURNING *',
+            [userId, content]
+        );
+        res.status(201).json({ message: 'Пост успешно создан', post: newPost.rows[0] });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Ошибка сервера' });
+    }
+});
+
 
 app.listen(port, () => {
   console.log(`Сервер запущен по адресу http://localhost:${port}`);
