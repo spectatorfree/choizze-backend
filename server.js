@@ -293,34 +293,32 @@ app.delete('/user/:id', auth, async (req, res) => {
 });
 
 app.post('/friends/request', auth, async (req, res) => {
-    try {
-        const senderId = req.user.id;
-        const { receiverId } = req.body;
+  const { senderId, receiverId } = req.body;
+  const userId = req.user.id;
 
-        if (senderId === receiverId) {
-            return res.status(400).json({ error: 'Вы не можете отправить запрос самому себе.' });
-        }
+  if (userId !== senderId) {
+    return res.status(403).json({ error: 'Вы не можете отправить запрос от имени другого пользователя.' });
+  }
 
-        const existingRequest = await db.query(
-            'SELECT * FROM friends WHERE (user_id = $1 AND friend_id = $2) OR (user_id = $2 AND friend_id = $1)',
-            [senderId, receiverId]
-        );
+  if (senderId === receiverId) {
+    return res.status(400).json({ error: 'Нельзя отправлять запрос в друзья самому себе.' });
+  }
 
-        if (existingRequest.rows.length > 0) {
-            return res.status(409).json({ error: 'Запрос на дружбу уже существует.' });
-        }
-
-        await db.query(
-            'INSERT INTO friends (user_id, friend_id, status) VALUES ($1, $2, $3)',
-            [senderId, receiverId, 'pending']
-        );
-
-        res.status(201).json({ message: 'Запрос на дружбу отправлен.' });
-
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Ошибка сервера' });
+  try {
+    const friendRequest = await db.query(
+      `INSERT INTO friends (sender_id, receiver_id, status)
+       VALUES ($1, $2, 'pending')
+       RETURNING *`,
+      [senderId, receiverId]
+    );
+    res.status(201).json({ message: 'Запрос в друзья успешно отправлен', request: friendRequest.rows[0] });
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.status(409).json({ error: 'Запрос в друзья уже существует.' });
     }
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
 });
 
 app.put('/friends/accept', auth, async (req, res) => {
