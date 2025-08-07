@@ -4,8 +4,6 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
-const auth = require('./middleware/auth');
-
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -20,7 +18,20 @@ const db = new Pool({
 });
 
 app.use(express.json());
-
+// Встроенная функция для проверки токена
+function auth(req, res, next) {
+    try {
+        const token = req.headers.authorization.split(' ')[1];
+        if (!token) {
+            return res.status(401).json({ error: 'Авторизация не пройдена, отсутствует токен.' });
+        }
+        const decoded = jwt.verify(token, jwtSecret);
+        req.user = decoded;
+        next();
+    } catch (err) {
+        return res.status(401).json({ error: 'Авторизация не пройдена, неверный токен.' });
+    }
+}
 app.get('/', (req, res) => {
   res.send('Привет, мир! Это наш первый сервер для CHOIZZE!');
 });
