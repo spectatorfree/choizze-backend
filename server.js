@@ -237,6 +237,27 @@ app.post('/friends/delete', auth, async (req, res) => {
 });
 
 
+// Маршрут для получения новостной ленты
+app.get('/news', auth, async (req, res) => {
+  const userId = req.user.id;
+  try {
+    const result = await db.query(
+      `SELECT p.*, u.username
+       FROM news n
+       JOIN posts p ON n.post_id = p.id
+       JOIN users u ON p.user_id = u.id
+       WHERE n.user_id = $1
+       ORDER BY p.created_at DESC`,
+      [userId]
+    );
+    res.status(200).json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+
 // Маршрут для получения списка друзей
 app.get('/friends', auth, async (req, res) => {
     const userId = req.user.id;
