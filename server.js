@@ -211,6 +211,32 @@ app.post('/friends/accept', auth, async (req, res) => {
     }
 });
 
+// Маршрут для удаления друга
+app.post('/friends/delete', auth, async (req, res) => {
+  const { friendId } = req.body;
+  const userId = req.user.id;
+
+  try {
+    const result = await db.query(
+      `DELETE FROM friends
+       WHERE (sender_id = $1 AND receiver_id = $2)
+          OR (sender_id = $2 AND receiver_id = $1)
+       RETURNING *`,
+      [userId, friendId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Дружба не найдена.' });
+    }
+
+    res.status(200).json({ message: 'Друг успешно удален.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+
 // Маршрут для получения списка друзей
 app.get('/friends', auth, async (req, res) => {
     const userId = req.user.id;
