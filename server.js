@@ -292,33 +292,29 @@ app.delete('/user/:id', auth, async (req, res) => {
     }
 });
 
-app.post('/friends/request', auth, async (req, res) => {
-  const { senderId, receiverId } = req.body;
-  const userId = req.user.id;
+// Маршрут для принятия запроса в друзья
+app.post('/friends/accept', auth, async (req, res) => {
+    const { friendRequestId } = req.body;
+    const userId = req.user.id;
 
-  if (userId !== senderId) {
-    return res.status(403).json({ error: 'Вы не можете отправить запрос от имени другого пользователя.' });
-  }
+    try {
+        const result = await db.query(
+            `UPDATE friends
+             SET status = 'accepted'
+             WHERE id = $1 AND receiver_id = $2
+             RETURNING *`,
+            [friendRequestId, userId]
+        );
 
-  if (senderId === receiverId) {
-    return res.status(400).json({ error: 'Нельзя отправлять запрос в друзья самому себе.' });
-  }
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Запрос в друзья не найден или вы не являетесь получателем запроса.' });
+        }
 
-  try {
-    const friendRequest = await db.query(
-      `INSERT INTO friends (sender_id, receiver_id, status)
-       VALUES ($1, $2, 'pending')
-       RETURNING *`,
-      [senderId, receiverId]
-    );
-    res.status(201).json({ message: 'Запрос в друзья успешно отправлен', request: friendRequest.rows[0] });
-  } catch (err) {
-    if (err.code === '23505') {
-      return res.status(409).json({ error: 'Запрос в друзья уже существует.' });
+        res.status(200).json({ message: 'Запрос в друзья успешно принят' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Ошибка сервера' });
     }
-    console.error(err);
-    res.status(500).json({ error: 'Ошибка сервера' });
-  }
 });
 
 app.put('/friends/accept', auth, async (req, res) => {
